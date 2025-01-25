@@ -4,18 +4,26 @@ from rest_framework import status
 from .serializers import UserSerializer
 from .repositories.UserRepository import UserRepository
 
+
 class UserView(APIView):
-    # Método GET para listar ou obter informações de usuários
     def get(self, request):
-        users = UserRepository.get_all_users()  
-        serializer = UserSerializer(users, many=True)  
-        return Response(serializer.data)
+        user_id = request.query_params.get('id')  
+        if user_id:
+            try: 
+                user = UserRepository.get_user_by_id(user_id)  
+                if user:
+                    serializer = UserSerializer(user)  
+                    return Response(serializer.data)
+                else:
+                    return Response({"error": "O usuario não foi encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            except Exception as _:
+                return Response({"error": "Servidor indisponivel"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # Método POST para criar um novo usuário
     def post(self, request):
         serializer = UserSerializer(data=request.data) 
         if serializer.is_valid():
-            # Usar o repository para criar o usuário
+            # Cria o usuário no banco
             user = UserRepository.create_user(
                 username=serializer.validated_data['username'],
                 email=serializer.validated_data['email']
@@ -28,7 +36,10 @@ class UserView(APIView):
     # Método PUT para atualizar um usuário específico
     def put(self, request):
         user_id = request.data.get('id')
-        user = UserRepository.get_user_by_id(user_id)  
+        try:
+            user = UserRepository.get_user_by_id(user_id)
+        except Exception as _:
+            return Response({"message": "Usuário não encontrado!!"},status=status.HTTP_404_NOT_FOUND)  
         serializer = UserSerializer(user, data=request.data, partial=True)  
         if serializer.is_valid():
             updated_user = UserRepository.update_user(
@@ -42,5 +53,8 @@ class UserView(APIView):
     # Método DELETE para excluir um usuário específico
     def delete(self, request):
         user_id = request.data.get('id')
-        UserRepository.delete_user(user_id)  
-        return Response({"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        try:
+            UserRepository.delete_user(user_id)  
+            return Response({"message": "Usuario deletado com sucesso"}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as _:
+            return Response({"message": "Usuário não encontrado"}, status=status.HTTP_204_NO_CONTENT)
