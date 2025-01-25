@@ -18,6 +18,8 @@ class UserView(APIView):
                     return Response({"error": "O usuario não foi encontrado"}, status=status.HTTP_404_NOT_FOUND)
             except Exception as _:
                 return Response({"error": "Servidor indisponivel"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            return Response({"error": "Usuario inválido"}, status=status.HTTP_404_NOT_FOUND)
 
     # Método POST para criar um novo usuário
     def post(self, request):
@@ -39,7 +41,7 @@ class UserView(APIView):
         try:
             user = UserRepository.get_user_by_id(user_id)
         except Exception as _:
-            return Response({"message": "Usuário não encontrado!!"},status=status.HTTP_404_NOT_FOUND)  
+            return Response({"error": "Usuário não encontrado!!"},status=status.HTTP_404_NOT_FOUND)  
         serializer = UserSerializer(user, data=request.data, partial=True)  
         if serializer.is_valid():
             updated_user = UserRepository.update_user(
@@ -57,4 +59,4 @@ class UserView(APIView):
             UserRepository.delete_user(user_id)  
             return Response({"message": "Usuario deletado com sucesso"}, status=status.HTTP_204_NO_CONTENT)
         except Exception as _:
-            return Response({"message": "Usuário não encontrado"}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"error": "Usuário não encontrado"}, status=status.HTTP_204_NO_CONTENT)
