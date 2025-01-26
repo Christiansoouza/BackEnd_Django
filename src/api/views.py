@@ -1,8 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from django.core.exceptions import ObjectDoesNotExist
+from .models import User
 from rest_framework import status
-from .serializers import UserSerializer
+from .serializers import UserSerializer,TransactionSerializer
 from .repositories.UserRepository import UserRepository
+from .repositories.TransactionRepository import TransactionRepository
 
 
 class UserView(APIView):
@@ -65,4 +68,60 @@ class TransactionView(APIView):
     def get(self,request):
         ...
     def post(self,request):
-        ...
+        def validate_balance(
+            sender: int,
+            amount:float
+        ):
+            if isinstance(sender, User):
+                sender = sender.id  # Extrai o ID de uma instância de Us
+            balance = UserRepository.get_amount(user_id=sender)
+             
+            return balance >= amount 
+            
+        serializer = TransactionSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                sender_id = serializer.validated_data['sender']
+                receiver_id = serializer.validated_data['receiver']
+                amount = serializer.validated_data['amount']
+                if validate_balance(sender=sender_id,amount=amount):
+                    # Cria a transação no banco
+                    transaction = TransactionRepository.create_transaction(
+                        sender=sender_id,
+                        receiver=receiver_id,
+                        amount=amount
+                    )
+
+                    if not transaction:
+                        return Response(
+                            {"error": "Não foi possível realizar a transação"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                        
+                    # Atualiza o saldo do receiver
+                    UserRepository.update_balance(
+                        amount=transaction.amount,
+                        user_id=transaction.receiver.id if isinstance(transaction.receiver, User) else transaction.receiver,
+                        type_transaction='increase'
+                    )
+                    UserRepository.update_balance(
+                        amount=transaction.amount,
+                        user_id=transaction.sender.id if isinstance(transaction.sender, User) else transaction.sender,
+                        type_transaction='decrease'                    
+                        )
+
+                    # Retorna sucesso
+                    return Response(
+                        {"success": "Transferência realizada com sucesso!"},
+                        status=status.HTTP_201_CREATED
+                    )
+                else:
+                    return Response({"error": "Você está duro!!"},status=status.HTTP_401_UNAUTHORIZED)
+            except Exception as e:
+                # Trata erros inesperados
+                return Response(
+                    {"error": f"Erro ao processar a transação: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        # Retorna erros de validação do serializer
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
