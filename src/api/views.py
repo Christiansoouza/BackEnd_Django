@@ -60,3 +60,9 @@ class UserView(APIView):
             return Response({"message": "Usuario deletado com sucesso"}, status=status.HTTP_204_NO_CONTENT)
         except Exception as _:
             return Response({"error": "Usuário não encontrado"}, status=status.HTTP_204_NO_CONTENT)
+
+class TransactionView(APIView):
+    def get(self,request):
+        ...
+    def post(self,request):
+        ...
